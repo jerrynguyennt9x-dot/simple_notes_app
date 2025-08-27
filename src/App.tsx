@@ -4,6 +4,7 @@ import { SignInForm } from "./SignInForm";
 import { SignOutButton } from "./SignOutButton";
 import { Toaster } from "sonner";
 import { NotesApp } from "./NotesApp";
+import { ShadcnDemo } from "./ShadcnDemo";
 
 export default function App() {
   return (
@@ -54,6 +55,11 @@ function Content() {
             A simple, clean note-taking app. Sign in to get started.
           </p>
           <SignInForm />
+          
+          {/* Shadcn UI Demo */}
+          <div className="mt-16 border-t pt-8">
+            <ShadcnDemo />
+          </div>
         </div>
       </Unauthenticated>
     </div>

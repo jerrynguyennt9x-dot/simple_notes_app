@@ -3,6 +3,12 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { Id } from "../convex/_generated/dataModel";
 import { toast } from "sonner";
+import { Button } from "./components/ui/button";
+import { Input } from "./components/ui/input";
+import { Textarea } from "./components/ui/textarea";
+import { Badge } from "./components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "./components/ui/dialog";
+import { Search, Plus, Edit, Trash2, Save, X, Clock, RefreshCw } from "lucide-react";
 
 export function NotesApp() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -88,13 +94,13 @@ export function NotesApp() {
   return (
     <div className="space-y-6">
       {/* Create new note */}
-      <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-        <textarea
+      <div className="bg-card border rounded-lg p-4 shadow-sm">
+        <Textarea
           ref={newNoteRef}
           value={newNoteContent}
           onChange={(e) => setNewNoteContent(e.target.value)}
           placeholder="What's on your mind?"
-          className="w-full resize-none border-none outline-none text-gray-900 placeholder-gray-500 text-lg"
+          className="w-full resize-none border-none focus-visible:ring-0 focus-visible:ring-offset-0 text-lg"
           rows={3}
           onKeyDown={(e) => {
             if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
@@ -102,50 +108,59 @@ export function NotesApp() {
             }
           }}
         />
-        <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-100">
-          <span className="text-sm text-gray-500">
-            {newNoteContent.length > 0 && `${newNoteContent.length} characters`}
+        <div className="flex justify-between items-center mt-3 pt-3 border-t border-border">
+          <span className="text-sm text-muted-foreground">
+            {newNoteContent.length > 0 && (
+              <Badge variant="outline" className="font-normal">
+                {newNoteContent.length} characters
+              </Badge>
+            )}
           </span>
-          <button
+          <Button
             onClick={handleCreateNote}
             disabled={!newNoteContent.trim()}
-            className="px-4 py-2 bg-blue-500 text-white rounded-full font-medium hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="gap-2"
           >
-            Note
-          </button>
+            <Plus size={16} />
+            Create Note
+          </Button>
         </div>
       </div>
 
       {/* Search and sort */}
       <div className="flex flex-col sm:flex-row gap-3">
-        <div className="flex-1">
-          <input
+        <div className="flex-1 relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <Input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search notes..."
-            className="w-full px-4 py-2 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="pl-9 pr-4"
           />
         </div>
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as "created" | "updated")}
-          className="px-4 py-2 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-        >
-          <option value="updated">Latest updated</option>
-          <option value="created">Latest created</option>
-        </select>
+        <div className="relative inline-block">
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as "created" | "updated")}
+            className="appearance-none bg-background border border-input rounded-md h-10 pl-4 pr-10 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            <option value="updated">Latest updated</option>
+            <option value="created">Latest created</option>
+          </select>
+          <Clock className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 pointer-events-none" />
+        </div>
       </div>
 
       {/* Notes list */}
       <div className="space-y-3">
         {notes.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="text-gray-400 text-6xl mb-4">📝</div>
-            <p className="text-gray-500 text-lg">
+          <div className="text-center py-12 border border-dashed border-muted rounded-lg">
+            <div className="text-muted-foreground text-6xl mb-4">📝</div>
+            <p className="text-muted-foreground text-lg font-medium">
               {searchTerm ? "No notes found" : "No notes yet"}
             </p>
-            <p className="text-gray-400 text-sm mt-2">
+            <p className="text-muted-foreground text-sm mt-2">
               {searchTerm ? "Try a different search term" : "Create your first note above"}
             </p>
           </div>
@@ -153,15 +168,15 @@ export function NotesApp() {
           notes.map((note) => (
             <div
               key={note._id}
-              className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow"
+              className="bg-card border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow"
             >
               {editingId === note._id ? (
                 <div className="space-y-3">
-                  <textarea
+                  <Textarea
                     ref={editRef}
                     value={editContent}
                     onChange={(e) => setEditContent(e.target.value)}
-                    className="w-full resize-none border-none outline-none text-gray-900 text-lg"
+                    className="w-full resize-none border-none focus-visible:ring-0 focus-visible:ring-offset-0 text-lg"
                     rows={Math.max(3, editContent.split('\n').length)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
@@ -172,52 +187,86 @@ export function NotesApp() {
                       }
                     }}
                   />
-                  <div className="flex justify-between items-center pt-3 border-t border-gray-100">
-                    <span className="text-sm text-gray-500">
+                  <div className="flex justify-between items-center pt-3 border-t border-border">
+                    <Badge variant="outline" className="font-normal">
                       {editContent.length} characters
-                    </span>
+                    </Badge>
                     <div className="flex gap-2">
-                      <button
-                        onClick={cancelEditing}
-                        className="px-3 py-1 text-gray-600 hover:text-gray-800 transition-colors"
-                      >
-                        Cancel
-                      </button>
-                      <button
+                      <Button variant="outline" size="sm" onClick={cancelEditing}>
+                        <X size={16} className="mr-1" /> Cancel
+                      </Button>
+                      <Button 
+                        size="sm"
                         onClick={() => handleUpdateNote(note._id)}
                         disabled={!editContent.trim()}
-                        className="px-4 py-1 bg-blue-500 text-white rounded-full font-medium hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
-                        Save
-                      </button>
+                        <Save size={16} className="mr-1" /> Save
+                      </Button>
                     </div>
                   </div>
                 </div>
               ) : (
                 <div>
-                  <div className="text-gray-900 text-lg leading-relaxed whitespace-pre-wrap mb-3">
+                  <div className="text-foreground text-lg leading-relaxed whitespace-pre-wrap mb-3">
                     {note.content}
                   </div>
-                  <div className="flex justify-between items-center text-sm text-gray-500">
-                    <div className="flex gap-4">
-                      <span>Created {formatTime(note._creationTime)}</span>
+                  <div className="flex justify-between items-center text-sm text-muted-foreground">
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant="secondary" className="font-normal flex items-center gap-1">
+                        <Clock size={12} /> Created {formatTime(note._creationTime)}
+                      </Badge>
                       {note.updatedAt !== note._creationTime && (
-                        <span>• Updated {formatTime(note.updatedAt)}</span>
+                        <Badge variant="outline" className="font-normal flex items-center gap-1">
+                          <RefreshCw size={12} /> Updated {formatTime(note.updatedAt)}
+                        </Badge>
                       )}
                     </div>
                     <div className="flex gap-2">
-                      <button
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
                         onClick={() => startEditing(note)}
-                        className="text-blue-500 hover:text-blue-700 transition-colors"
+                        className="text-blue-500 hover:text-blue-700 hover:bg-blue-50"
                       >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteNote(note._id)}
-                        className="text-red-500 hover:text-red-700 transition-colors"
-                      >
-                        Delete
-                      </button>
+                        <Edit size={16} className="mr-1" /> Edit
+                      </Button>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 size={16} className="mr-1" /> Delete
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Delete Note</DialogTitle>
+                            <DialogDescription>
+                              Are you sure you want to delete this note? This action cannot be undone.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <DialogFooter className="gap-2 sm:gap-0">
+                            <Button 
+                              variant="outline" 
+                              onClick={() => document.getElementById('cancel-delete-dialog')?.click()}
+                            >
+                              Cancel
+                            </Button>
+                            <Button 
+                              variant="destructive" 
+                              onClick={() => {
+                                handleDeleteNote(note._id);
+                                document.getElementById('cancel-delete-dialog')?.click();
+                              }}
+                            >
+                              Delete
+                            </Button>
+                          </DialogFooter>
+                          <button id="cancel-delete-dialog" className="hidden" />
+                        </DialogContent>
+                      </Dialog>
                     </div>
                   </div>
                 </div>
