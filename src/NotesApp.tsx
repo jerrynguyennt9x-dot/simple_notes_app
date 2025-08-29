@@ -8,7 +8,11 @@ import { Input } from "./components/ui/input";
 import { Textarea } from "./components/ui/textarea";
 import { Badge } from "./components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "./components/ui/dialog";
-import { Search, Plus, Edit, Trash2, Save, X, Clock, RefreshCw, Calendar, Hash } from "lucide-react";
+import { Search, Plus, Edit, Trash2, Save, X, Clock, RefreshCw, Calendar, Hash, Share2, Image } from "lucide-react";
+import { ShareNoteDialog } from "./ShareNoteDialog";
+import { ImageUploader, ImagePreview } from "./ImageUploader";
+
+import { formatContentWithHashtags, formatTime } from "./utils.tsx";
 
 export function NotesApp() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -19,6 +23,8 @@ export function NotesApp() {
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedHashtag, setSelectedHashtag] = useState<string>("");
   const [noteDate, setNoteDate] = useState(new Date().toISOString().split('T')[0]);
+  const [sharingNoteId, setSharingNoteId] = useState<Id<"notes"> | null>(null);
+  const [newNoteImages, setNewNoteImages] = useState<Id<"_storage">[]>([]);
 
   // Tìm kiếm ghi chú với tham số ngày và hashtag
   const notes = useQuery(api.notes.search, { 
@@ -55,23 +61,26 @@ export function NotesApp() {
     try {
       await createNote({ 
         content: newNoteContent.trim(),
-        date: noteDate
+        date: noteDate,
+        images: newNoteImages.length > 0 ? newNoteImages : undefined
       });
       setNewNoteContent("");
+      setNewNoteImages([]);
       toast.success("Note created!");
     } catch (error) {
       toast.error("Failed to create note");
     }
   };
 
-  const handleUpdateNote = async (id: Id<"notes">, date?: string) => {
+  const handleUpdateNote = async (id: Id<"notes">, date?: string, images?: Id<"_storage">[]) => {
     if (!editContent.trim()) return;
     
     try {
       await updateNote({ 
         id, 
         content: editContent.trim(),
-        date: date || noteDate
+        date: date || noteDate,
+        images: images
       });
       setEditingId(null);
       setEditContent("");
@@ -143,8 +152,8 @@ export function NotesApp() {
             }
           }}
         />
-        <div className="flex flex-wrap justify-between items-center mt-3 pt-3 border-t border-border">
-          <div className="flex items-center space-x-2 mb-2 sm:mb-0">
+        <div className="flex flex-col space-y-3 mt-3 pt-3 border-t border-border">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center">
               <Calendar size={16} className="mr-2 text-muted-foreground" />
               <Input 
@@ -154,20 +163,43 @@ export function NotesApp() {
                 className="w-auto h-8 py-0 px-2"
               />
             </div>
+            
+            <ImageUploader 
+              onImageUpload={(storageId) => setNewNoteImages(prev => [...prev, storageId])} 
+              existingImages={newNoteImages}
+            />
+            
             {newNoteContent.length > 0 && (
               <Badge variant="outline" className="font-normal">
                 {newNoteContent.length} characters
               </Badge>
             )}
           </div>
-          <Button
-            onClick={handleCreateNote}
-            disabled={!newNoteContent.trim()}
-            className="gap-2"
-          >
-            <Plus size={16} />
-            Create Note
-          </Button>
+          
+          {/* Hiển thị ảnh đã tải lên */}
+          {newNoteImages.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {newNoteImages.map(imageId => (
+                <ImagePreview 
+                  key={imageId.toString()}
+                  storageId={imageId}
+                  size="small"
+                  onRemove={() => setNewNoteImages(prev => prev.filter(id => id !== imageId))}
+                />
+              ))}
+            </div>
+          )}
+          
+          <div className="flex justify-end">
+            <Button
+              onClick={handleCreateNote}
+              disabled={!newNoteContent.trim()}
+              className="gap-2"
+            >
+              <Plus size={16} />
+              Create Note
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -303,8 +335,8 @@ export function NotesApp() {
                       }
                     }}
                   />
-                  <div className="flex flex-wrap justify-between items-center gap-2 pt-3 border-t border-border">
-                    <div className="flex items-center gap-2">
+                  <div className="flex flex-col space-y-3 pt-3 border-t border-border">
+                    <div className="flex flex-wrap items-center gap-3">
                       <div className="flex items-center">
                         <Calendar size={16} className="mr-2 text-muted-foreground" />
                         <Input 
@@ -314,17 +346,21 @@ export function NotesApp() {
                           className="w-auto h-8 py-0 px-2"
                         />
                       </div>
+                      <ImageUploader
+                        noteId={note._id}
+                        existingImages={note.images || []}
+                      />
                       <Badge variant="outline" className="font-normal">
                         {editContent.length} characters
                       </Badge>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex justify-end gap-2">
                       <Button variant="outline" size="sm" onClick={cancelEditing}>
                         <X size={16} className="mr-1" /> Cancel
                       </Button>
                       <Button 
                         size="sm"
-                        onClick={() => handleUpdateNote(note._id, note.date)}
+                        onClick={() => handleUpdateNote(note._id, note.date, note.images)}
                         disabled={!editContent.trim()}
                       >
                         <Save size={16} className="mr-1" /> Save
@@ -342,6 +378,20 @@ export function NotesApp() {
                       setSelectedDate("");
                     })}
                   </div>
+                  
+                  {/* Hiển thị ảnh đính kèm */}
+                  {note.images && note.images.length > 0 && (
+                    <div className="flex flex-wrap gap-2 my-3">
+                      {note.images.map((imageId) => (
+                        <ImagePreview 
+                          key={imageId.toString()}
+                          storageId={imageId}
+                          size="medium"
+                        />
+                      ))}
+                    </div>
+                  )}
+                  
                   {/* Hiển thị ngày tháng */}
                   {note.date && (
                     <div className="mb-2 flex items-center">
@@ -369,6 +419,14 @@ export function NotesApp() {
                         className="text-blue-500 hover:text-blue-700 hover:bg-blue-50"
                       >
                         <Edit size={16} className="mr-1" /> Edit
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => setSharingNoteId(note._id)}
+                        className="text-green-500 hover:text-green-700 hover:bg-green-50"
+                      >
+                        <Share2 size={16} className="mr-1" /> Share
                       </Button>
                       <Dialog>
                         <DialogTrigger asChild>
@@ -415,48 +473,15 @@ export function NotesApp() {
           ))
         )}
       </div>
+      
+      {/* ShareNoteDialog */}
+      {sharingNoteId && (
+        <ShareNoteDialog 
+          noteId={sharingNoteId}
+          isOpen={!!sharingNoteId}
+          onClose={() => setSharingNoteId(null)}
+        />
+      )}
     </div>
   );
-}
-
-function formatTime(timestamp: number) {
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
-
-  if (diffInHours < 1) {
-    const diffInMinutes = Math.floor(diffInHours * 60);
-    return diffInMinutes < 1 ? "now" : `${diffInMinutes}m`;
-  } else if (diffInHours < 24) {
-    return `${Math.floor(diffInHours)}h`;
-  } else if (diffInHours < 24 * 7) {
-    const diffInDays = Math.floor(diffInHours / 24);
-    return `${diffInDays}d`;
-  } else {
-    return date.toLocaleDateString();
-  }
-}
-
-// Hàm để hiển thị hashtags với màu khác
-function formatContentWithHashtags(content: string, onHashtagClick?: (hashtag: string) => void) {
-  if (!content) return null;
-  
-  // Tách nội dung thành các phần dựa trên hashtag
-  const parts = content.split(/(#\w+)/g);
-  
-  return parts.map((part, index) => {
-    if (part.startsWith('#')) {
-      // Nếu là hashtag, hiển thị với màu khác
-      return (
-        <span 
-          key={index} 
-          className="text-primary font-medium cursor-pointer hover:underline"
-          onClick={() => onHashtagClick?.(part.slice(1))}
-        >
-          {part}
-        </span>
-      );
-    }
-    return <span key={index}>{part}</span>;
-  });
 }

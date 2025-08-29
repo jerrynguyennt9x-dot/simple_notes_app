@@ -1,14 +1,30 @@
-import { Authenticated, Unauthenticated, useQuery } from "convex/react";
+import { Authenticated, Unauthenticated, AuthLoading, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { SignInForm } from "./SignInForm";
 import { SignOutButton } from "./SignOutButton";
 import { Toaster } from "sonner";
 import { NotesApp } from "./NotesApp";
-import { ShadcnDemo } from "./ShadcnDemo";
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { SharedNote } from "./SharedNote";
 
 export default function App() {
   return (
-    <div className="min-h-screen flex flex-col bg-white">
+    <Router>
+      <div className="min-h-screen flex flex-col bg-white">
+        <Routes>
+          <Route path="/shared/:shareId" element={<SharedNoteLayout />} />
+          <Route path="*" element={<MainLayout />} />
+        </Routes>
+        <Toaster />
+      </div>
+    </Router>
+  );
+}
+
+// Layout cho trang chính
+function MainLayout() {
+  return (
+    <>
       <header className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-gray-200">
         <div className="max-w-2xl mx-auto px-4 h-16 flex justify-between items-center">
           <h1 className="text-xl font-bold text-gray-900">📝 Notes</h1>
@@ -23,9 +39,18 @@ export default function App() {
           <Content />
         </div>
       </main>
-      
-      <Toaster />
-    </div>
+    </>
+  );
+}
+
+// Layout cho trang chia sẻ ghi chú
+function SharedNoteLayout() {
+  return (
+    <main className="flex-1">
+      <div className="max-w-2xl mx-auto px-4 py-6">
+        <SharedNote />
+      </div>
+    </main>
   );
 }
 
@@ -55,11 +80,6 @@ function Content() {
             A simple, clean note-taking app. Sign in to get started.
           </p>
           <SignInForm />
-          
-          {/* Shadcn UI Demo */}
-          <div className="mt-16 border-t pt-8">
-            <ShadcnDemo />
-          </div>
         </div>
       </Unauthenticated>
     </div>

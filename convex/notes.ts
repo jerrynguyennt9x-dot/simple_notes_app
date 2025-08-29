@@ -2,6 +2,36 @@ import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
+export const get = query({
+  args: {
+    id: v.id("notes"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return null;
+    }
+
+    const note = await ctx.db.get(args.id);
+    if (!note) {
+      return null;
+    }
+
+    // Chỉ trả về nếu là tác giả hoặc được chia sẻ
+    if (note.authorId === userId) {
+      return note;
+    }
+
+    // Kiểm tra xem người dùng có trong danh sách được chia sẻ không
+    const user = await ctx.db.get(userId);
+    if (user && user.email && note.sharedWith && note.sharedWith.includes(user.email)) {
+      return note;
+    }
+
+    return null;
+  },
+});
+
 export const list = query({
   args: {
     sortBy: v.optional(v.union(v.literal("created"), v.literal("updated"))),
@@ -109,6 +139,7 @@ export const create = mutation({
   args: {
     content: v.string(),
     date: v.optional(v.string()),
+    images: v.optional(v.array(v.id("_storage"))),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -126,6 +157,7 @@ export const create = mutation({
       updatedAt: now,
       hashtags,
       date,
+      images: args.images || [],
     });
   },
 });
@@ -135,6 +167,7 @@ export const update = mutation({
     id: v.id("notes"),
     content: v.string(),
     date: v.optional(v.string()),
+    images: v.optional(v.array(v.id("_storage"))),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -160,6 +193,10 @@ export const update = mutation({
     
     if (args.date) {
       updateData.date = args.date;
+    }
+
+    if (args.images !== undefined) {
+      updateData.images = args.images;
     }
 
     await ctx.db.patch(args.id, updateData);
