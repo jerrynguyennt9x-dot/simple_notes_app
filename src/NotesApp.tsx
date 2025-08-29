@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { Id } from "../convex/_generated/dataModel";
@@ -8,7 +8,7 @@ import { Input } from "./components/ui/input";
 import { Textarea } from "./components/ui/textarea";
 import { Badge } from "./components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "./components/ui/dialog";
-import { Search, Plus, Edit, Trash2, Save, X, Clock, RefreshCw } from "lucide-react";
+import { Search, Plus, Edit, Trash2, Save, X, Clock, RefreshCw, Calendar, Hash } from "lucide-react";
 
 export function NotesApp() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -16,8 +16,26 @@ export function NotesApp() {
   const [editingId, setEditingId] = useState<Id<"notes"> | null>(null);
   const [newNoteContent, setNewNoteContent] = useState("");
   const [editContent, setEditContent] = useState("");
+  const [selectedDate, setSelectedDate] = useState<string>("");
+  const [selectedHashtag, setSelectedHashtag] = useState<string>("");
+  const [noteDate, setNoteDate] = useState(new Date().toISOString().split('T')[0]);
 
-  const notes = useQuery(api.notes.search, { searchTerm }) || [];
+  // Tìm kiếm ghi chú với tham số ngày và hashtag
+  const notes = useQuery(api.notes.search, { 
+    searchTerm,
+    date: selectedDate,
+    hashtag: selectedHashtag
+  }) || [];
+  
+  // Trích xuất tất cả các hashtag từ các ghi chú
+  const hashtags = useMemo(() => {
+    const allHashtags = new Set<string>();
+    notes.forEach(note => {
+      const matches = note.content.match(/#(\w+)/g) || [];
+      matches.forEach(tag => allHashtags.add(tag));
+    });
+    return Array.from(allHashtags);
+  }, [notes]);
   const createNote = useMutation(api.notes.create);
   const updateNote = useMutation(api.notes.update);
   const deleteNote = useMutation(api.notes.remove);
@@ -35,7 +53,10 @@ export function NotesApp() {
     if (!newNoteContent.trim()) return;
     
     try {
-      await createNote({ content: newNoteContent.trim() });
+      await createNote({ 
+        content: newNoteContent.trim(),
+        date: noteDate
+      });
       setNewNoteContent("");
       toast.success("Note created!");
     } catch (error) {
@@ -43,11 +64,15 @@ export function NotesApp() {
     }
   };
 
-  const handleUpdateNote = async (id: Id<"notes">) => {
+  const handleUpdateNote = async (id: Id<"notes">, date?: string) => {
     if (!editContent.trim()) return;
     
     try {
-      await updateNote({ id, content: editContent.trim() });
+      await updateNote({ 
+        id, 
+        content: editContent.trim(),
+        date: date || noteDate
+      });
       setEditingId(null);
       setEditContent("");
       toast.success("Note updated!");
@@ -68,6 +93,16 @@ export function NotesApp() {
   const startEditing = (note: any) => {
     setEditingId(note._id);
     setEditContent(note.content);
+    setNoteDate(note.date || new Date().toISOString().split('T')[0]);
+  };
+  
+  // Highlight hashtags khi nhập
+  const highlightHashtags = (text: string) => {
+    // Tự động thêm khoảng trắng sau hashtag khi gõ
+    if (text.endsWith(' #')) {
+      return text.slice(0, -1) + '# ';
+    }
+    return text;
   };
 
   const cancelEditing = () => {
@@ -98,8 +133,8 @@ export function NotesApp() {
         <Textarea
           ref={newNoteRef}
           value={newNoteContent}
-          onChange={(e) => setNewNoteContent(e.target.value)}
-          placeholder="What's on your mind?"
+          onChange={(e) => setNewNoteContent(highlightHashtags(e.target.value))}
+          placeholder="What's on your mind? Use #hashtags to categorize your notes"
           className="w-full resize-none border-none focus-visible:ring-0 focus-visible:ring-offset-0 text-lg"
           rows={3}
           onKeyDown={(e) => {
@@ -108,14 +143,23 @@ export function NotesApp() {
             }
           }}
         />
-        <div className="flex justify-between items-center mt-3 pt-3 border-t border-border">
-          <span className="text-sm text-muted-foreground">
+        <div className="flex flex-wrap justify-between items-center mt-3 pt-3 border-t border-border">
+          <div className="flex items-center space-x-2 mb-2 sm:mb-0">
+            <div className="flex items-center">
+              <Calendar size={16} className="mr-2 text-muted-foreground" />
+              <Input 
+                type="date"
+                value={noteDate}
+                onChange={(e) => setNoteDate(e.target.value)}
+                className="w-auto h-8 py-0 px-2"
+              />
+            </div>
             {newNoteContent.length > 0 && (
               <Badge variant="outline" className="font-normal">
                 {newNoteContent.length} characters
               </Badge>
             )}
-          </span>
+          </div>
           <Button
             onClick={handleCreateNote}
             disabled={!newNoteContent.trim()}
@@ -127,28 +171,100 @@ export function NotesApp() {
         </div>
       </div>
 
-      {/* Search and sort */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-          <Input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search notes..."
-            className="pl-9 pr-4"
-          />
+      {/* Search and filters */}
+      <div className="space-y-3">
+        {/* Search bar */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setSelectedHashtag(""); // Clear hashtag filter when searching
+                setSelectedDate(""); // Clear date filter when searching
+              }}
+              placeholder="Search notes or type # to search by hashtag..."
+              className="pl-9 pr-4"
+            />
+          </div>
+          <div className="relative inline-block">
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as "created" | "updated")}
+              className="appearance-none bg-background border border-input rounded-md h-10 pl-4 pr-10 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <option value="updated">Latest updated</option>
+              <option value="created">Latest created</option>
+            </select>
+            <Clock className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 pointer-events-none" />
+          </div>
         </div>
-        <div className="relative inline-block">
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as "created" | "updated")}
-            className="appearance-none bg-background border border-input rounded-md h-10 pl-4 pr-10 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          >
-            <option value="updated">Latest updated</option>
-            <option value="created">Latest created</option>
-          </select>
-          <Clock className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 pointer-events-none" />
+
+        {/* Filters - Date and Hashtags */}
+        <div className="flex flex-wrap gap-2">
+          {/* Date filter */}
+          <div className="flex items-center">
+            <Input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => {
+                setSelectedDate(e.target.value);
+                setSearchTerm("");
+                setSelectedHashtag("");
+              }}
+              className="w-auto h-8 py-0 px-2"
+              placeholder="Filter by date..."
+            />
+            {selectedDate && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setSelectedDate("")}
+                className="h-8 w-8 p-0 ml-1"
+              >
+                <X size={14} />
+              </Button>
+            )}
+          </div>
+
+          {/* Hashtag filters */}
+          <div className="flex flex-wrap gap-1">
+            {hashtags.map((tag) => (
+              <Badge 
+                key={tag}
+                variant={selectedHashtag === tag.slice(1) ? "default" : "outline"}
+                className="cursor-pointer hover:bg-primary/20"
+                onClick={() => {
+                  if (selectedHashtag === tag.slice(1)) {
+                    setSelectedHashtag("");
+                  } else {
+                    setSelectedHashtag(tag.slice(1));
+                    setSearchTerm("");
+                    setSelectedDate("");
+                  }
+                }}
+              >
+                <Hash size={12} className="mr-1" />
+                {tag.slice(1)}
+              </Badge>
+            ))}
+          </div>
+
+          {(selectedDate || selectedHashtag) && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => {
+                setSelectedDate("");
+                setSelectedHashtag("");
+              }}
+              className="ml-auto text-muted-foreground text-xs"
+            >
+              Clear filters
+            </Button>
+          )}
         </div>
       </div>
 
@@ -175,29 +291,40 @@ export function NotesApp() {
                   <Textarea
                     ref={editRef}
                     value={editContent}
-                    onChange={(e) => setEditContent(e.target.value)}
+                    onChange={(e) => setEditContent(highlightHashtags(e.target.value))}
                     className="w-full resize-none border-none focus-visible:ring-0 focus-visible:ring-offset-0 text-lg"
                     rows={Math.max(3, editContent.split('\n').length)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                        handleUpdateNote(note._id);
+                        handleUpdateNote(note._id, note.date);
                       }
                       if (e.key === "Escape") {
                         cancelEditing();
                       }
                     }}
                   />
-                  <div className="flex justify-between items-center pt-3 border-t border-border">
-                    <Badge variant="outline" className="font-normal">
-                      {editContent.length} characters
-                    </Badge>
+                  <div className="flex flex-wrap justify-between items-center gap-2 pt-3 border-t border-border">
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center">
+                        <Calendar size={16} className="mr-2 text-muted-foreground" />
+                        <Input 
+                          type="date"
+                          defaultValue={note.date || new Date().toISOString().split('T')[0]}
+                          onChange={(e) => setNoteDate(e.target.value)}
+                          className="w-auto h-8 py-0 px-2"
+                        />
+                      </div>
+                      <Badge variant="outline" className="font-normal">
+                        {editContent.length} characters
+                      </Badge>
+                    </div>
                     <div className="flex gap-2">
                       <Button variant="outline" size="sm" onClick={cancelEditing}>
                         <X size={16} className="mr-1" /> Cancel
                       </Button>
                       <Button 
                         size="sm"
-                        onClick={() => handleUpdateNote(note._id)}
+                        onClick={() => handleUpdateNote(note._id, note.date)}
                         disabled={!editContent.trim()}
                       >
                         <Save size={16} className="mr-1" /> Save
@@ -208,8 +335,21 @@ export function NotesApp() {
               ) : (
                 <div>
                   <div className="text-foreground text-lg leading-relaxed whitespace-pre-wrap mb-3">
-                    {note.content}
+                    {/* Hiển thị nội dung với các hashtag được highlight */}
+                    {formatContentWithHashtags(note.content, (hashtag) => {
+                      setSelectedHashtag(hashtag);
+                      setSearchTerm("");
+                      setSelectedDate("");
+                    })}
                   </div>
+                  {/* Hiển thị ngày tháng */}
+                  {note.date && (
+                    <div className="mb-2 flex items-center">
+                      <Badge variant="secondary" className="font-normal flex items-center gap-1">
+                        <Calendar size={12} /> {new Date(note.date).toLocaleDateString()}
+                      </Badge>
+                    </div>
+                  )}
                   <div className="flex justify-between items-center text-sm text-muted-foreground">
                     <div className="flex flex-wrap gap-2">
                       <Badge variant="secondary" className="font-normal flex items-center gap-1">
@@ -295,4 +435,28 @@ function formatTime(timestamp: number) {
   } else {
     return date.toLocaleDateString();
   }
+}
+
+// Hàm để hiển thị hashtags với màu khác
+function formatContentWithHashtags(content: string, onHashtagClick?: (hashtag: string) => void) {
+  if (!content) return null;
+  
+  // Tách nội dung thành các phần dựa trên hashtag
+  const parts = content.split(/(#\w+)/g);
+  
+  return parts.map((part, index) => {
+    if (part.startsWith('#')) {
+      // Nếu là hashtag, hiển thị với màu khác
+      return (
+        <span 
+          key={index} 
+          className="text-primary font-medium cursor-pointer hover:underline"
+          onClick={() => onHashtagClick?.(part.slice(1))}
+        >
+          {part}
+        </span>
+      );
+    }
+    return <span key={index}>{part}</span>;
+  });
 }
