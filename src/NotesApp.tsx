@@ -8,7 +8,7 @@ import { Input } from "./components/ui/input";
 import { Textarea } from "./components/ui/textarea";
 import { Badge } from "./components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "./components/ui/dialog";
-import { Search, Plus, Edit, Trash2, Save, X, Clock, RefreshCw, Calendar, Hash, Share2, Image } from "lucide-react";
+import { Search, Plus, Edit, Trash2, Save, X, Clock, RefreshCw, Calendar, Hash, Share2 } from "lucide-react";
 import { ShareNoteDialog } from "./ShareNoteDialog";
 import { ImageUploader, ImagePreview } from "./ImageUploader";
 
@@ -22,16 +22,24 @@ export function NotesApp() {
   const [editContent, setEditContent] = useState("");
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedHashtag, setSelectedHashtag] = useState<string>("");
+  const [selectedTag, setSelectedTag] = useState<string>("");
   const [noteDate, setNoteDate] = useState(new Date().toISOString().split('T')[0]);
   const [sharingNoteId, setSharingNoteId] = useState<Id<"notes"> | null>(null);
   const [newNoteImages, setNewNoteImages] = useState<Id<"_storage">[]>([]);
+  const [newNoteTags, setNewNoteTags] = useState<string[]>([]);
+  const [editTags, setEditTags] = useState<string[]>([]);
+  const [newTag, setNewTag] = useState<string>("");
 
   // Tìm kiếm ghi chú với tham số ngày và hashtag
   const notes = useQuery(api.notes.search, { 
     searchTerm,
     date: selectedDate,
-    hashtag: selectedHashtag
+    hashtag: selectedHashtag,
+    tag: selectedTag
   }) || [];
+  
+  // Lấy tất cả các tags của người dùng
+  const allUserTags = useQuery(api.notes.getAllUserTags) || [];
   
   // Trích xuất tất cả các hashtag từ các ghi chú
   const hashtags = useMemo(() => {
@@ -45,7 +53,6 @@ export function NotesApp() {
   const createNote = useMutation(api.notes.createNote);
   const updateNote = useMutation(api.notes.update);
   const deleteNote = useMutation(api.notes.remove);
-  const addImageToNote = useMutation(api.images.addImageToNote);
 
   const newNoteRef = useRef<HTMLTextAreaElement>(null);
   const editRef = useRef<HTMLTextAreaElement>(null);
@@ -63,11 +70,14 @@ export function NotesApp() {
     const currentContent = newNoteContent.trim();
     const currentImages = [...newNoteImages];
     const currentDate = noteDate;
+    const currentTags = [...newNoteTags];
     
     try {
       // Reset form trước để người dùng có thể tiếp tục viết ghi chú mới
       setNewNoteContent("");
       setNewNoteImages([]);
+      setNewNoteTags([]);
+      setNewTag("");
       
       // Hiển thị toast đang tạo ghi chú
       const toastId = toast.loading("Đang tạo ghi chú...");
@@ -77,7 +87,8 @@ export function NotesApp() {
         content: currentContent,
         date: currentDate,
         // Chỉ gửi images nếu có hình ảnh
-        ...(currentImages.length > 0 ? { images: currentImages } : {})
+        ...(currentImages.length > 0 ? { images: currentImages } : {}),
+        tags: currentTags
       });
       
       // Cập nhật toast thành công
@@ -87,6 +98,7 @@ export function NotesApp() {
       setNewNoteContent(currentContent);
       setNewNoteImages(currentImages);
       setNoteDate(currentDate);
+      setNewNoteTags(currentTags);
       
       // Hiển thị lỗi
       toast.error(`Lỗi khi tạo ghi chú: ${error.message || 'Đã xảy ra lỗi'}`);
@@ -102,10 +114,12 @@ export function NotesApp() {
         id, 
         content: editContent.trim(),
         date: date || noteDate,
-        images: images
+        images: images,
+        tags: editTags
       });
       setEditingId(null);
       setEditContent("");
+      setEditTags([]);
       toast.success("Note updated!");
     } catch (error) {
       toast.error("Failed to update note");
@@ -125,6 +139,7 @@ export function NotesApp() {
     setEditingId(note._id);
     setEditContent(note.content);
     setNoteDate(note.date || new Date().toISOString().split('T')[0]);
+    setEditTags(note.tags || []);
   };
   
   // Highlight hashtags khi nhập
@@ -139,6 +154,42 @@ export function NotesApp() {
   const cancelEditing = () => {
     setEditingId(null);
     setEditContent("");
+    setEditTags([]);
+  };
+  
+  // Thêm tag mới cho note
+  const addTag = (tagToAdd: string, isNewNote: boolean = true) => {
+    if (!tagToAdd.trim()) return;
+    
+    const normalizedTag = tagToAdd.trim().toLowerCase();
+    
+    if (isNewNote) {
+      if (!newNoteTags.includes(normalizedTag)) {
+        setNewNoteTags([...newNoteTags, normalizedTag]);
+      }
+    } else {
+      if (!editTags.includes(normalizedTag)) {
+        setEditTags([...editTags, normalizedTag]);
+      }
+    }
+    setNewTag("");
+  };
+  
+  // Xóa tag
+  const removeTag = (tagToRemove: string, isNewNote: boolean = true) => {
+    if (isNewNote) {
+      setNewNoteTags(newNoteTags.filter(tag => tag !== tagToRemove));
+    } else {
+      setEditTags(editTags.filter(tag => tag !== tagToRemove));
+    }
+  };
+  
+  // Xử lý khi nhấn Enter trong input tag
+  const handleTagKeyDown = (e: React.KeyboardEvent, isNewNote: boolean = true) => {
+    if (e.key === 'Enter' && newTag.trim()) {
+      e.preventDefault();
+      addTag(newTag, isNewNote);
+    }
   };
 
   const formatTime = (timestamp: number) => {
@@ -196,6 +247,51 @@ export function NotesApp() {
               <Badge variant="outline" className="font-normal">
                 {newNoteContent.length} characters
               </Badge>
+            )}
+          </div>
+          
+          {/* Thêm tags cho ghi chú */}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <div className="flex items-center border rounded-md px-2 py-1 flex-grow">
+                <Hash size={16} className="text-muted-foreground mr-2" />
+                <Input 
+                  type="text"
+                  value={newTag}
+                  onChange={(e) => setNewTag(e.target.value)}
+                  onKeyDown={(e) => handleTagKeyDown(e, true)}
+                  placeholder="Thêm tag..."
+                  className="border-none h-7 p-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                />
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-6 px-2" 
+                  onClick={() => addTag(newTag, true)}
+                  disabled={!newTag.trim()}
+                >
+                  <Plus size={16} />
+                </Button>
+              </div>
+            </div>
+            {newNoteTags.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {newNoteTags.map((tag) => (
+                  <Badge key={tag} variant="secondary" className="px-2 py-1">
+                    <Hash size={12} className="mr-1" />
+                    {tag}
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="ml-1 h-4 w-4 p-0 text-muted-foreground rounded-full hover:bg-destructive/20 hover:text-destructive"
+                      onClick={() => removeTag(tag, true)}
+                    >
+                      <X size={10} />
+                    </Button>
+                  </Badge>
+                ))}
+              </div>
             )}
           </div>
           
@@ -257,7 +353,7 @@ export function NotesApp() {
           </div>
         </div>
 
-        {/* Filters - Date and Hashtags */}
+        {/* Filters - Date, Hashtags, and Tags */}
         <div className="flex flex-wrap gap-2">
           {/* Date filter */}
           <div className="flex items-center">
@@ -268,6 +364,7 @@ export function NotesApp() {
                 setSelectedDate(e.target.value);
                 setSearchTerm("");
                 setSelectedHashtag("");
+                setSelectedTag("");
               }}
               className="w-auto h-8 py-0 px-2"
               placeholder="Filter by date..."
@@ -285,35 +382,65 @@ export function NotesApp() {
           </div>
 
           {/* Hashtag filters */}
-          <div className="flex flex-wrap gap-1">
-            {hashtags.map((tag) => (
-              <Badge 
-                key={tag}
-                variant={selectedHashtag === tag.slice(1) ? "default" : "outline"}
-                className="cursor-pointer hover:bg-primary/20"
-                onClick={() => {
-                  if (selectedHashtag === tag.slice(1)) {
-                    setSelectedHashtag("");
-                  } else {
-                    setSelectedHashtag(tag.slice(1));
-                    setSearchTerm("");
-                    setSelectedDate("");
-                  }
-                }}
-              >
-                <Hash size={12} className="mr-1" />
-                {tag.slice(1)}
-              </Badge>
-            ))}
-          </div>
+          {hashtags.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {hashtags.map((tag) => (
+                <Badge 
+                  key={tag}
+                  variant={selectedHashtag === tag.slice(1) ? "default" : "outline"}
+                  className="cursor-pointer hover:bg-primary/20"
+                  onClick={() => {
+                    if (selectedHashtag === tag.slice(1)) {
+                      setSelectedHashtag("");
+                    } else {
+                      setSelectedHashtag(tag.slice(1));
+                      setSearchTerm("");
+                      setSelectedDate("");
+                      setSelectedTag("");
+                    }
+                  }}
+                >
+                  <Hash size={12} className="mr-1" />
+                  {tag.slice(1)}
+                </Badge>
+              ))}
+            </div>
+          )}
+          
+          {/* Tag filters */}
+          {allUserTags && allUserTags.length > 0 && (
+            <div className="flex flex-wrap gap-1 ml-2">
+              {allUserTags.map((tag) => (
+                <Badge 
+                  key={tag}
+                  variant={selectedTag === tag ? "default" : "secondary"}
+                  className="cursor-pointer hover:bg-primary/20"
+                  onClick={() => {
+                    if (selectedTag === tag) {
+                      setSelectedTag("");
+                    } else {
+                      setSelectedTag(tag);
+                      setSearchTerm("");
+                      setSelectedDate("");
+                      setSelectedHashtag("");
+                    }
+                  }}
+                >
+                  <Hash size={12} className="mr-1" />
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+          )}
 
-          {(selectedDate || selectedHashtag) && (
+          {(selectedDate || selectedHashtag || selectedTag) && (
             <Button 
               variant="ghost" 
               size="sm" 
               onClick={() => {
                 setSelectedDate("");
                 setSelectedHashtag("");
+                setSelectedTag("");
               }}
               className="ml-auto text-muted-foreground text-xs"
             >
@@ -377,6 +504,51 @@ export function NotesApp() {
                         {editContent.length} characters
                       </Badge>
                     </div>
+                    
+                    {/* Thêm tags cho ghi chú */}
+                    <div className="flex flex-col gap-2 mt-2">
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center border rounded-md px-2 py-1 flex-grow">
+                          <Hash size={16} className="text-muted-foreground mr-2" />
+                          <Input 
+                            type="text"
+                            value={newTag}
+                            onChange={(e) => setNewTag(e.target.value)}
+                            onKeyDown={(e) => handleTagKeyDown(e, false)}
+                            placeholder="Thêm tag..."
+                            className="border-none h-7 p-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                          />
+                          <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-6 px-2" 
+                            onClick={() => addTag(newTag, false)}
+                            disabled={!newTag.trim()}
+                          >
+                            <Plus size={16} />
+                          </Button>
+                        </div>
+                      </div>
+                      {editTags.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {editTags.map((tag) => (
+                            <Badge key={tag} variant="secondary" className="px-2 py-1">
+                              <Hash size={12} className="mr-1" />
+                              {tag}
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="ml-1 h-4 w-4 p-0 text-muted-foreground rounded-full hover:bg-destructive/20 hover:text-destructive"
+                                onClick={() => removeTag(tag, false)}
+                              >
+                                <X size={10} />
+                              </Button>
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                     <div className="flex justify-end gap-2">
                       <Button variant="outline" size="sm" onClick={cancelEditing}>
                         <X size={16} className="mr-1" /> Cancel
@@ -415,14 +587,30 @@ export function NotesApp() {
                     </div>
                   )}
                   
-                  {/* Hiển thị ngày tháng */}
-                  {note.date && (
-                    <div className="mb-2 flex items-center">
+                  {/* Hiển thị ngày tháng và tags */}
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    {note.date && (
                       <Badge variant="secondary" className="font-normal flex items-center gap-1">
                         <Calendar size={12} /> {new Date(note.date).toLocaleDateString()}
                       </Badge>
-                    </div>
-                  )}
+                    )}
+                    {note.tags && note.tags.length > 0 && note.tags.map((tag) => (
+                      <Badge 
+                        key={tag} 
+                        variant="outline" 
+                        className="cursor-pointer hover:bg-secondary/80 font-normal"
+                        onClick={() => {
+                          setSelectedTag(tag);
+                          setSelectedHashtag("");
+                          setSearchTerm("");
+                          setSelectedDate("");
+                        }}
+                      >
+                        <Hash size={12} className="mr-1" />
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
                   <div className="flex justify-between items-center text-sm text-muted-foreground">
                     <div className="flex flex-wrap gap-2">
                       <Badge variant="secondary" className="font-normal flex items-center gap-1">

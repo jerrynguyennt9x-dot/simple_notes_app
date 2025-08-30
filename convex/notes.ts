@@ -65,6 +65,7 @@ export const search = query({
     searchTerm: v.string(),
     hashtag: v.optional(v.string()),
     date: v.optional(v.string()),
+    tag: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -72,6 +73,16 @@ export const search = query({
       return [];
     }
 
+    // Nếu có tag, tìm kiếm note có tag đó
+    if (args.tag) {
+      return await ctx.db
+        .query("notes")
+        .withIndex("by_author", (q) => q.eq("authorId", userId))
+        .order("desc")
+        .collect()
+        .then(notes => notes.filter(note => note.tags && note.tags.includes(args.tag!)));
+    }
+    
     // Nếu có hashtag, tìm kiếm bằng cách tìm trong nội dung
     if (args.hashtag) {
       const hashtagTerm = `#${args.hashtag}`;
@@ -141,6 +152,7 @@ export const createNote = mutation({
     content: v.string(),
     date: v.optional(v.string()),
     images: v.optional(v.array(v.id("_storage"))),
+    tags: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -160,6 +172,7 @@ export const createNote = mutation({
         updatedAt: now,
         hashtags,
         date,
+        tags: args.tags || [],
       };
       
       // Tạo ghi chú không kèm hình ảnh
@@ -189,6 +202,7 @@ export const update = mutation({
     content: v.string(),
     date: v.optional(v.string()),
     images: v.optional(v.array(v.id("_storage"))),
+    tags: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -219,6 +233,10 @@ export const update = mutation({
     if (args.images !== undefined) {
       updateData.images = args.images;
     }
+    
+    if (args.tags !== undefined) {
+      updateData.tags = args.tags;
+    }
 
     await ctx.db.patch(args.id, updateData);
   },
@@ -245,4 +263,30 @@ export const remove = mutation({
 
     await ctx.db.delete(args.id);
   },
+});
+
+// Hàm để lấy tất cả các tags của người dùng
+export const getAllUserTags = query({
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return [];
+    }
+
+    // Lấy tất cả ghi chú của người dùng
+    const notes = await ctx.db
+      .query("notes")
+      .withIndex("by_author", (q) => q.eq("authorId", userId))
+      .collect();
+
+    // Tạo danh sách các tags duy nhất
+    const uniqueTags = new Set<string>();
+    notes.forEach(note => {
+      if (note.tags && note.tags.length > 0) {
+        note.tags.forEach(tag => uniqueTags.add(tag));
+      }
+    });
+
+    return Array.from(uniqueTags);
+  }
 });

@@ -1,13 +1,8 @@
-import { auth } from "./auth";
 import { httpAction } from "./_generated/server";
 
-// Tạo action HTTP
-export const post = httpAction(async (ctx, request) => {
-  // Xử lý HTTP POST request
-  return new Response("API route works", {
+// HTTP action đơn giản để test API
+export const hello = httpAction(async ({ runQuery, runMutation }, request) => {
+  return new Response("Hello from Convex API!", {
     status: 200,
   });
 });
-
-// Đảm bảo auth routes được thêm vào
-// (không cần phải thêm vào router ở đây vì đã được xử lý trong router.ts)

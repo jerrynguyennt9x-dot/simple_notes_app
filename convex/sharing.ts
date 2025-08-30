@@ -2,7 +2,6 @@ import { query, mutation, action } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { nanoid } from "nanoid";
-import { internal } from "./_generated/api";
 
 // Tạo ID chia sẻ mới
 function generateShareId() {
@@ -157,14 +156,8 @@ export const getSharedNote = query({
       return null;
     }
 
-    // Ghi lại lượt xem
+    // Ghi lại lượt xem (chỉ có thể làm trong mutation, không phải query)
     const userId = await getAuthUserId(ctx);
-    
-    // Lưu dữ liệu lượt xem với internal action để không làm chậm API
-    ctx.scheduler.runAfter(0, internal.sharing.recordView, {
-      noteId: note._id,
-      viewerId: userId || undefined,
-    });
 
     return {
       ...note,
@@ -225,11 +218,22 @@ export const getNotesSharedWithMe = query({
       return [];
     }
 
-    return await ctx.db
+    // Lấy tất cả các ghi chú và lọc thủ công vì không có contains
+    const notes = await ctx.db
       .query("notes")
-      .withIndex("by_shared_with", q => q.contains("sharedWith", [currentUser.email]))
       .filter(q => q.eq(q.field("isShared"), true))
       .collect();
+    
+    // Lọc những ghi chú được chia sẻ với người dùng hiện tại
+    return notes.filter(note => {
+      if (!note.sharedWith) return false;
+      
+      // Kiểm tra nếu email của người dùng hiện tại có trong danh sách được chia sẻ
+      const userEmail = currentUser.email;
+      if (!userEmail) return false;
+      
+      return note.sharedWith.includes(userEmail);
+    });
   },
 });
 
@@ -268,40 +272,5 @@ export const getNoteViews = query({
       unique: uniqueIps.size,
       loggedInViewers: uniqueViewers.size,
     };
-  },
-});
-
-// Internal mutation để ghi lại lượt xem ghi chú
-export const recordView = action({
-  args: {
-    noteId: v.id("notes"),
-    viewerId: v.optional(v.id("users")),
-  },
-  handler: async (ctx, args) => {
-    // Lấy IP của người xem (mô phỏng vì action không có access IP)
-    const viewerIp = "127.0.0.1"; // Trong thực tế, lấy IP từ request
-
-    await ctx.runMutation(internal.sharing.saveView, {
-      noteId: args.noteId,
-      viewerId: args.viewerId,
-      viewerIp
-    });
-  },
-});
-
-// Internal mutation để lưu thông tin xem
-export const saveView = mutation({
-  args: {
-    noteId: v.id("notes"),
-    viewerId: v.optional(v.id("users")),
-    viewerIp: v.string(),
-  },
-  handler: async (ctx, args) => {
-    await ctx.db.insert("noteViews", {
-      noteId: args.noteId,
-      viewerId: args.viewerId,
-      viewerIp: args.viewerIp,
-      viewedAt: Date.now(),
-    });
   },
 });
