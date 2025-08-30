@@ -135,7 +135,8 @@ function extractHashtags(content: string): string[] {
   return [...new Set(hashtags)]; // Loại bỏ các hashtag trùng lặp
 }
 
-export const create = mutation({
+export const createNote = mutation({
+  // Định nghĩa chính xác các tham số được phép
   args: {
     content: v.string(),
     date: v.optional(v.string()),
@@ -144,21 +145,41 @@ export const create = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new Error("Not authenticated");
+      throw new Error("Vui lòng đăng nhập để tạo ghi chú");
     }
 
     const now = Date.now();
     const hashtags = extractHashtags(args.content);
     const date = args.date || new Date().toISOString().split('T')[0]; // Lấy ngày hiện tại nếu không được cung cấp
     
-    return await ctx.db.insert("notes", {
-      content: args.content,
-      authorId: userId,
-      updatedAt: now,
-      hashtags,
-      date,
-      images: args.images || [],
-    });
+    try {
+      // Chuẩn bị dữ liệu cơ bản
+      const noteData = {
+        content: args.content,
+        authorId: userId,
+        updatedAt: now,
+        hashtags,
+        date,
+      };
+      
+      // Tạo ghi chú không kèm hình ảnh
+      let noteId;
+      
+      // Chỉ thêm images vào note nếu có hình ảnh
+      if (args.images && args.images.length > 0) {
+        noteId = await ctx.db.insert("notes", {
+          ...noteData,
+          images: args.images
+        });
+      } else {
+        noteId = await ctx.db.insert("notes", noteData);
+      }
+      
+      return noteId;
+    } catch (error) {
+      console.error("Error creating note:", error);
+      throw new Error("Không thể tạo ghi chú. Vui lòng thử lại sau.");
+    }
   },
 });
 

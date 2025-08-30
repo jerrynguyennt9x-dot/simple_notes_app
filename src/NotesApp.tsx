@@ -42,9 +42,10 @@ export function NotesApp() {
     });
     return Array.from(allHashtags);
   }, [notes]);
-  const createNote = useMutation(api.notes.create);
+  const createNote = useMutation(api.notes.createNote);
   const updateNote = useMutation(api.notes.update);
   const deleteNote = useMutation(api.notes.remove);
+  const addImageToNote = useMutation(api.images.addImageToNote);
 
   const newNoteRef = useRef<HTMLTextAreaElement>(null);
   const editRef = useRef<HTMLTextAreaElement>(null);
@@ -58,17 +59,38 @@ export function NotesApp() {
   const handleCreateNote = async () => {
     if (!newNoteContent.trim()) return;
     
+    // Lưu trữ tạm thời trạng thái để reset sau khi tạo
+    const currentContent = newNoteContent.trim();
+    const currentImages = [...newNoteImages];
+    const currentDate = noteDate;
+    
     try {
-      await createNote({ 
-        content: newNoteContent.trim(),
-        date: noteDate,
-        images: newNoteImages.length > 0 ? newNoteImages : undefined
-      });
+      // Reset form trước để người dùng có thể tiếp tục viết ghi chú mới
       setNewNoteContent("");
       setNewNoteImages([]);
-      toast.success("Note created!");
-    } catch (error) {
-      toast.error("Failed to create note");
+      
+      // Hiển thị toast đang tạo ghi chú
+      const toastId = toast.loading("Đang tạo ghi chú...");
+      
+      // Tạo note mới với nội dung và ngày cơ bản trước
+      const noteIdResult = await createNote({ 
+        content: currentContent,
+        date: currentDate,
+        // Chỉ gửi images nếu có hình ảnh
+        ...(currentImages.length > 0 ? { images: currentImages } : {})
+      });
+      
+      // Cập nhật toast thành công
+      toast.success("Ghi chú đã được tạo!", { id: toastId });
+    } catch (error: any) {
+      // Khôi phục dữ liệu nếu có lỗi
+      setNewNoteContent(currentContent);
+      setNewNoteImages(currentImages);
+      setNoteDate(currentDate);
+      
+      // Hiển thị lỗi
+      toast.error(`Lỗi khi tạo ghi chú: ${error.message || 'Đã xảy ra lỗi'}`);
+      console.error("Create note error:", error);
     }
   };
 
@@ -167,6 +189,7 @@ export function NotesApp() {
             <ImageUploader 
               onImageUpload={(storageId) => setNewNoteImages(prev => [...prev, storageId])} 
               existingImages={newNoteImages}
+              disabled={newNoteContent.trim().length === 0}
             />
             
             {newNoteContent.length > 0 && (
