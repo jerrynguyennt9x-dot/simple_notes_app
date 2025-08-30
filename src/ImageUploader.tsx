@@ -196,6 +196,7 @@ export function ImagePreview({ storageId, onRemove, size = "medium" }: ImagePrev
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
+  const [isZoomed, setIsZoomed] = useState(false);
   
   // Kích thước dựa trên tham số size
   const sizeClasses = {
@@ -251,11 +252,55 @@ export function ImagePreview({ storageId, onRemove, size = "medium" }: ImagePrev
         onError={() => setError(true)}
       />
       
-      {/* Overlay cho phép click xem ảnh đầy đủ */}
+      {/* Overlay cho phép click xem ảnh phóng to */}
       <div 
         className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 transition-opacity cursor-pointer"
-        onClick={() => window.open(imageUrl, '_blank')}
+        onClick={() => setIsZoomed(true)}
       />
+      
+      {/* Modal hiển thị ảnh phóng to */}
+      {isZoomed && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-85"
+          onClick={() => setIsZoomed(false)}
+          style={{ backdropFilter: 'blur(3px)' }}
+        >
+          <div 
+            className="relative max-w-[95vw] max-h-[95vh] overflow-hidden animate-zoomIn"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={imageUrl}
+              alt="Zoomed image"
+              className="max-w-full max-h-[95vh] object-contain rounded-lg shadow-xl"
+            />
+            <button
+              className="absolute top-3 right-3 p-2 bg-black bg-opacity-60 text-white rounded-full hover:bg-opacity-90 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsZoomed(false);
+              }}
+              aria-label="Đóng"
+            >
+              <X size={20} />
+            </button>
+            {/* Thêm nút tải xuống */}
+            <a
+              href={imageUrl}
+              download
+              className="absolute bottom-3 right-3 p-2 bg-black bg-opacity-60 text-white rounded-full hover:bg-opacity-90 transition-colors"
+              onClick={(e) => e.stopPropagation()}
+              aria-label="Tải xuống"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+            </a>
+          </div>
+        </div>
+      )}
       
       {onRemove && (
         <button

@@ -64,7 +64,8 @@ export function NotesApp() {
   }, [editingId]);
 
   const handleCreateNote = async () => {
-    if (!newNoteContent.trim()) return;
+    // Cho phép tạo ghi chú nếu có nội dung hoặc ảnh
+    if (!newNoteContent.trim() && newNoteImages.length === 0) return;
     
     // Lưu trữ tạm thời trạng thái để reset sau khi tạo
     const currentContent = newNoteContent.trim();
@@ -107,7 +108,8 @@ export function NotesApp() {
   };
 
   const handleUpdateNote = async (id: Id<"notes">, date?: string, images?: Id<"_storage">[]) => {
-    if (!editContent.trim()) return;
+    // Cho phép cập nhật nếu có nội dung hoặc ảnh
+    if (!editContent.trim() && (!images || images.length === 0)) return;
     
     try {
       await updateNote({ 
@@ -240,7 +242,6 @@ export function NotesApp() {
             <ImageUploader 
               onImageUpload={(storageId) => setNewNoteImages(prev => [...prev, storageId])} 
               existingImages={newNoteImages}
-              disabled={newNoteContent.trim().length === 0}
             />
             
             {newNoteContent.length > 0 && (
@@ -312,7 +313,7 @@ export function NotesApp() {
           <div className="flex justify-end">
             <Button
               onClick={handleCreateNote}
-              disabled={!newNoteContent.trim()}
+              disabled={!newNoteContent.trim() && newNoteImages.length === 0}
               className="gap-2"
             >
               <Plus size={16} />
@@ -556,7 +557,7 @@ export function NotesApp() {
                       <Button 
                         size="sm"
                         onClick={() => handleUpdateNote(note._id, note.date, note.images)}
-                        disabled={!editContent.trim()}
+                        disabled={!editContent.trim() && (!note.images || note.images.length === 0)}
                       >
                         <Save size={16} className="mr-1" /> Save
                       </Button>
