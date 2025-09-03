@@ -3,11 +3,13 @@ import { api } from "../convex/_generated/api";
 import { SignOutButton } from "./SignOutButton";
 import { Toaster } from "sonner";
 import { NotesApp } from "./NotesApp";
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { SharedNote } from "./SharedNote";
 import { SignInPage } from "./SignInPage";
 import { Button } from "./components/ui/button";
 import { HomePage } from "./HomePage";
+import DashboardPage from "./DashboardPage";
+import { ReactNode, Suspense } from "react";
 
 export default function App() {
   return (
@@ -17,6 +19,14 @@ export default function App() {
           <Route path="/shared/:shareId" element={<SharedNoteLayout />} />
           <Route path="/signin" element={<SignInPage />} />
           <Route path="/databoard" element={<MainLayout />} />
+          <Route
+            path="/dashboard"
+            element={
+              <Authenticated>
+                <DashboardPage />
+              </Authenticated>
+            }
+          />
           <Route path="/" element={<HomePage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
@@ -78,6 +88,31 @@ function SharedNoteLayout() {
       </div>
     </main>
   );
+}
+
+
+
+// Protected route component
+function AuthRoute({ children }: { children: ReactNode }) {
+  const loggedInUser = useQuery(api.auth.loggedInUser);
+  const location = useLocation();
+  
+  // If still loading, show loading indicator
+  if (loggedInUser === undefined) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  // If not authenticated, redirect to signin with the current location
+  if (loggedInUser === null) {
+    return <Navigate to="/signin" state={{ from: location }} replace />;
+  }
+
+  // Otherwise, render children
+  return <>{children}</>;
 }
 
 function Content() {
