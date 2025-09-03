@@ -76,12 +76,33 @@ module.exports = {
           from: { transform: "scale(0.95)", opacity: "0" },
           to: { transform: "scale(1)", opacity: "1" },
         },
+        "splash-scale": {
+          "0%": { transform: "scale(0.2)", opacity: "0.4" },
+          "50%": { opacity: "0.2" },
+          "100%": { transform: "scale(1)", opacity: "0" },
+        },
+        blob: {
+          "0%": {
+            transform: "translate(0px, 0px) scale(1)",
+          },
+          "33%": {
+            transform: "translate(30px, -50px) scale(1.1)",
+          },
+          "66%": {
+            transform: "translate(-20px, 20px) scale(0.9)",
+          },
+          "100%": {
+            transform: "translate(0px, 0px) scale(1)",
+          },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "fadeIn": "fadeIn 0.2s ease-out",
         "zoomIn": "zoomIn 0.25s ease-out",
+        "splash-scale": "splash-scale 1.2s cubic-bezier(0.25, 1, 0.5, 1) forwards",
+        "blob": "blob 7s infinite",
       },
       spacing: {
         "form-field": "16px",

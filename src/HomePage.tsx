@@ -1,0 +1,122 @@
+"use client";
+
+import React from "react";
+import { SparklesCore } from "@/components/ui/sparkles";
+import { Button } from "./components/ui/button";
+import { Authenticated, Unauthenticated } from "convex/react";
+import { useNavigate } from "react-router-dom";
+
+// Feature item component
+function FeatureItem({ icon, title, description }: { icon: string; title: string; description: string }) {
+  return (
+    <div className="text-center px-4">
+      <div className="text-3xl mb-2">{icon}</div>
+      <h3 className="text-white font-medium">{title}</h3>
+      <p className="text-white/60 text-sm">{description}</p>
+    </div>
+  );
+}
+
+export function HomePage() {
+  const navigate = useNavigate();
+  
+  return (
+    <div className="h-screen w-full bg-black flex flex-col overflow-hidden">
+      {/* Header */}
+      <header className="w-full py-6 px-4 flex justify-between items-center relative z-20">
+        <div className="flex items-center gap-2">
+          <span className="text-2xl">📝</span>
+          <h1 className="text-xl font-bold text-white">
+            Notes App
+          </h1>
+        </div>
+        
+        <div className="flex gap-4">
+          <Authenticated>
+            <Button 
+              onClick={() => navigate("/databoard")}
+              className="bg-white/10 hover:bg-white/20 text-white border-white/20"
+            >
+              My Notes
+            </Button>
+          </Authenticated>
+          
+          <Unauthenticated>
+            <Button 
+              variant="outline" 
+              className="bg-white/10 backdrop-blur-sm text-white border-white/20 hover:bg-white/20" 
+              onClick={() => navigate("/signin")}
+            >
+              Sign In
+            </Button>
+          </Unauthenticated>
+        </div>
+      </header>
+      
+      {/* Main Content */}
+      <main className="flex-1 flex flex-col items-center justify-center">
+        <div className="relative w-full h-full flex flex-col items-center justify-center">
+          {/* Sparkles Background */}
+          <div className="w-full absolute inset-0">
+            <SparklesCore
+              id="tsparticlesfullpage"
+              background="transparent"
+              minSize={0.6}
+              maxSize={1.4}
+              particleDensity={100}
+              className="w-full h-full"
+              particleColor="#FFFFFF"
+              speed={1}
+            />
+          </div>
+          
+          {/* Gradients */}
+          <div className="absolute inset-x-20 top-1/3 bg-gradient-to-r from-transparent via-indigo-500 to-transparent h-[2px] w-3/4 blur-sm" />
+          <div className="absolute inset-x-20 top-1/3 bg-gradient-to-r from-transparent via-indigo-500 to-transparent h-px w-3/4" />
+          <div className="absolute inset-x-60 top-1/3 bg-gradient-to-r from-transparent via-sky-500 to-transparent h-[5px] w-1/4 blur-sm" />
+          <div className="absolute inset-x-60 top-1/3 bg-gradient-to-r from-transparent via-sky-500 to-transparent h-px w-1/4" />
+          
+          {/* Content */}
+          <div className="flex flex-col items-center justify-center gap-6 relative z-20 px-4">
+            <h1 className="md:text-7xl text-4xl lg:text-8xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-b from-neutral-50 to-neutral-400">
+              Take Better Notes
+            </h1>
+            <p className="text-neutral-300 md:text-xl text-center max-w-2xl">
+              A simple, beautiful, and fast note-taking app for all your ideas.
+            </p>
+            
+            <div className="flex flex-wrap gap-4 justify-center mt-8">
+              <Button 
+                size="lg" 
+                className="bg-white text-black hover:bg-white/90"
+                onClick={() => navigate("/signin")}
+              >
+                Get Started
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                size="lg"
+                className="border-white/20 text-white hover:bg-white/10"
+                onClick={() => navigate("/shared/example")}
+              >
+                View Demo
+              </Button>
+            </div>
+            
+            <div className="mt-12 flex flex-wrap gap-8 justify-center">
+              <FeatureItem icon="✨" title="Simple" description="Clean, minimalist interface" />
+              <FeatureItem icon="🔄" title="Sync" description="Access from any device" />
+              <FeatureItem icon="🔒" title="Secure" description="Your notes, your privacy" />
+            </div>
+          </div>
+        </div>
+      </main>
+      
+      {/* Footer */}
+      <footer className="py-6 text-center text-white/40 text-sm relative z-20">
+        &copy; {new Date().getFullYear()} Notes App. All rights reserved.
+      </footer>
+    </div>
+  );
+}
