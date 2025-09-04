@@ -23,7 +23,6 @@ export default function DashboardPage() {
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        <h1 className="text-4xl font-bold text-red-500">THIS IS THE DASHBOARD PAGE</h1>
         <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
           <div className="flex items-center gap-2 px-4 w-full justify-between">
             <div className="flex items-center gap-2">
