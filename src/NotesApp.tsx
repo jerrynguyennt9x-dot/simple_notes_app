@@ -12,7 +12,7 @@ import { Search, Plus, Edit, Trash2, Save, X, Clock, RefreshCw, Calendar, Hash, 
 import { ShareNoteDialog } from "./ShareNoteDialog";
 import { ImageUploader, ImagePreview } from "./ImageUploader";
 
-import { formatContentWithHashtags, formatTime } from "./utils.tsx";
+import { formatContentWithHashtags, formatTime, formatTimeWithHours } from "./utils.tsx";
 
 export function NotesApp() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -191,22 +191,6 @@ export function NotesApp() {
     if (e.key === 'Enter' && newTag.trim()) {
       e.preventDefault();
       addTag(newTag, isNewNote);
-    }
-  };
-
-  const formatTime = (timestamp: number) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
-
-    if (diffInHours < 1) {
-      const diffInMinutes = Math.floor(diffInHours * 60);
-      return diffInMinutes < 1 ? "now" : `${diffInMinutes}m`;
-    } else if (diffInHours < 24) {
-      return `${Math.floor(diffInHours)}h`;
-    } else {
-      const diffInDays = Math.floor(diffInHours / 24);
-      return `${diffInDays}d`;
     }
   };
 
@@ -615,11 +599,11 @@ export function NotesApp() {
                   <div className="flex justify-between items-center text-sm text-muted-foreground">
                     <div className="flex flex-wrap gap-2">
                       <Badge variant="secondary" className="font-normal flex items-center gap-1">
-                        <Clock size={12} /> Created {formatTime(note._creationTime)}
+                        <Clock size={12} /> Created {formatTimeWithHours(note._creationTime)}
                       </Badge>
                       {note.updatedAt !== note._creationTime && (
                         <Badge variant="outline" className="font-normal flex items-center gap-1">
-                          <RefreshCw size={12} /> Updated {formatTime(note.updatedAt)}
+                          <RefreshCw size={12} /> Updated {formatTimeWithHours(note.updatedAt)}
                         </Badge>
                       )}
                     </div>

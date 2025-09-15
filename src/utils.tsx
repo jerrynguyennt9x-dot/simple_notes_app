@@ -42,3 +42,26 @@ export function formatTime(timestamp: number) {
     return date.toLocaleDateString();
   }
 }
+
+// Hàm định dạng thời gian với giờ phút
+export function formatTimeWithHours(timestamp: number) {
+  const date = new Date(timestamp);
+  const now = new Date();
+  const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+
+  // Nếu trong ngày hôm nay, hiển thị giờ:phút
+  if (diffInHours < 24) {
+    return date.toLocaleTimeString('vi-VN', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: false 
+    });
+  } else {
+    // Nếu khác ngày, hiển thị ngày/tháng + giờ:phút
+    return `${date.toLocaleDateString('vi-VN')} ${date.toLocaleTimeString('vi-VN', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: false 
+    })}`;
+  }
+}
