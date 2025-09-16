@@ -31,6 +31,7 @@ export function NotesApp() {
   const [editTags, setEditTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState<string>("");
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
+  const [showEditVoiceRecorder, setShowEditVoiceRecorder] = useState(false);
 
   // Mutations and Queries
   const notes = useQuery(api.notes.search, { 
@@ -189,6 +190,7 @@ export function NotesApp() {
     setEditContent(note.content);
     setNoteDate(note.date || new Date().toISOString().split('T')[0]);
     setEditTags(note.tags || []);
+    setShowEditVoiceRecorder(false);
   };
   
   const highlightHashtags = (text: string) => {
@@ -202,6 +204,7 @@ export function NotesApp() {
     setEditingId(null);
     setEditContent("");
     setEditTags([]);
+    setShowEditVoiceRecorder(false);
   };
   
   const addTag = (tagToAdd: string, isNewNote: boolean = true) => {
@@ -251,6 +254,27 @@ export function NotesApp() {
         return newContent;
       });
       setShowVoiceRecorder(false);
+    }
+  };
+
+  // Edit Voice Recording Handlers
+  const handleEditVoiceTranscriptChange = (transcript: string) => {
+    if (transcript.trim()) {
+      setEditContent(prevContent => {
+        const baseContent = prevContent.split('[Đang ghi âm...]')[0];
+        return baseContent + transcript;
+      });
+    }
+  };
+
+  const handleEditVoiceTranscriptConfirm = (transcript: string) => {
+    if (transcript.trim()) {
+      setEditContent(prevContent => {
+        const baseContent = prevContent.split('[Đang ghi âm...]')[0];
+        const newContent = baseContent + (baseContent ? '\n\n' : '') + transcript;
+        return newContent;
+      });
+      setShowEditVoiceRecorder(false);
     }
   };
 
@@ -405,6 +429,18 @@ export function NotesApp() {
                         <Calendar size={16} className="mr-2 text-muted-foreground" />
                         <Input type="date" defaultValue={note.date || new Date().toISOString().split('T')[0]} onChange={(e) => setNoteDate(e.target.value)} className="w-auto h-8 py-0 px-2" />
                       </div>
+                      
+                      <Button
+                        type="button"
+                        variant={showEditVoiceRecorder ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setShowEditVoiceRecorder(!showEditVoiceRecorder)}
+                        className="flex items-center gap-2"
+                      >
+                        <Mic size={16} />
+                        {showEditVoiceRecorder ? "Ẩn ghi âm" : "Ghi âm"}
+                      </Button>
+                      
                       <ImageUploader noteId={note._id} existingImages={note.images || []} />
                       <Badge variant="outline" className="font-normal">{editContent.length} characters</Badge>
                     </div>
@@ -427,6 +463,18 @@ export function NotesApp() {
                         </div>
                       )}
                     </div>
+                    
+                    {/* Edit Voice Recorder */}
+                    {showEditVoiceRecorder && (
+                      <div className="border-t border-border pt-3">
+                        <VoiceRecorder
+                          onTranscriptChange={handleEditVoiceTranscriptChange}
+                          onTranscriptConfirm={handleEditVoiceTranscriptConfirm}
+                          isDisabled={false}
+                        />
+                      </div>
+                    )}
+                    
                     <div className="flex justify-end gap-2">
                       <Button variant="outline" size="sm" onClick={cancelEditing}><X size={16} className="mr-1" /> Cancel</Button>
                       <Button size="sm" onClick={() => handleUpdateNote(note._id, note.date, note.images)} disabled={!editContent.trim() && (!note.images || note.images.length === 0)}><Save size={16} className="mr-1" /> Save</Button>
