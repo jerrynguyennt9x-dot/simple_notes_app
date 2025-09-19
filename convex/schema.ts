@@ -14,6 +14,10 @@ const applicationTables = {
     shareId: v.optional(v.string()), // ID chia sẻ duy nhất để truy cập ghi chú
     sharedWith: v.optional(v.array(v.string())), // Danh sách email người dùng được chia sẻ
     images: v.optional(v.array(v.id("_storage"))), // Danh sách ID của các ảnh được đính kèm
+    mood: v.optional(v.object({ // Trường lưu trữ cảm xúc
+      emoji: v.string(),
+      name: v.string()
+    })),
   })
     .index("by_author", ["authorId"])
     .index("by_author_and_updated", ["authorId", "updatedAt"])

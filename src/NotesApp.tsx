@@ -8,11 +8,12 @@ import { Input } from "./components/ui/input";
 import { Textarea } from "./components/ui/textarea";
 import { Badge } from "./components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "./components/ui/dialog";
-import { Search, Plus, Edit, Trash2, Save, X, Clock, RefreshCw, Calendar, Hash, Share2, Mic, Smile } from "lucide-react";
+import { Search, Plus, Edit, Trash2, Save, X, Clock, RefreshCw, Calendar, Hash, Share2, Mic, Smile, Heart } from "lucide-react";
 import { ShareNoteDialog } from "./ShareNoteDialog";
 import { ImageUploader, ImagePreview } from "./ImageUploader";
 import { VoiceRecorder } from "./components/VoiceRecorder";
 import { CustomEmojiPicker } from "./components/CustomEmojiPicker";
+import { MoodPicker } from "./components/MoodPicker";
 
 import { formatContentWithHashtags, formatTime, formatTimeWithHours } from "./utils.tsx";
 
@@ -35,6 +36,9 @@ export function NotesApp() {
   const [showEditVoiceRecorder, setShowEditVoiceRecorder] = useState(false);
   const [contentBeforeRecording, setContentBeforeRecording] = useState('');
   const [emojiPickerTarget, setEmojiPickerTarget] = useState<'new' | 'edit' | null>(null);
+  const [moodPickerTarget, setMoodPickerTarget] = useState<'new' | 'edit' | null>(null);
+  const [selectedMood, setSelectedMood] = useState<{emoji: string, name: string} | null>(null);
+  const [editMood, setEditMood] = useState<{emoji: string, name: string} | null>(null);
 
   // Mutations and Queries
   const notes = useQuery(api.notes.search, {
@@ -131,12 +135,14 @@ export function NotesApp() {
     const currentImages = [...newNoteImages];
     const currentDate = noteDate;
     const currentTags = [...newNoteTags];
+    const currentMood = selectedMood;
     
     try {
       setNewNoteContent("");
       setNewNoteImages([]);
       setNewNoteTags([]);
       setNewTag("");
+      setSelectedMood(null);
       
       const toastId = toast.loading("Creating note...");
       
@@ -144,7 +150,8 @@ export function NotesApp() {
         content: currentContent,
         date: currentDate,
         ...(currentImages.length > 0 ? { images: currentImages } : {}),
-        tags: currentTags
+        tags: currentTags,
+        ...(currentMood ? { mood: currentMood } : {})
       });
       
       toast.success("Note created!", { id: toastId });
@@ -153,6 +160,7 @@ export function NotesApp() {
       setNewNoteImages(currentImages);
       setNoteDate(currentDate);
       setNewNoteTags(currentTags);
+      setSelectedMood(currentMood);
       toast.error(`Failed to create note: ${error.message || 'Unknown error'}`);
       console.error("Create note error:", error);
     }
@@ -167,11 +175,13 @@ export function NotesApp() {
         content: editContent.trim(),
         date: date || noteDate,
         images: images,
-        tags: editTags
+        tags: editTags,
+        ...(editMood ? { mood: editMood } : {})
       });
       setEditingId(null);
       setEditContent("");
       setEditTags([]);
+      setEditMood(null);
       toast.success("Note updated!");
     } catch (error) {
       toast.error("Failed to update note");
@@ -193,6 +203,7 @@ export function NotesApp() {
     setEditContent(note.content);
     setNoteDate(note.date || new Date().toISOString().split('T')[0]);
     setEditTags(note.tags || []);
+    setEditMood(note.mood || null);
     setShowEditVoiceRecorder(false);
   };
   
@@ -207,6 +218,7 @@ export function NotesApp() {
     setEditingId(null);
     setEditContent("");
     setEditTags([]);
+    setEditMood(null);
     setShowEditVoiceRecorder(false);
   };
   
@@ -299,6 +311,15 @@ export function NotesApp() {
     }, 10);
   };
 
+  const handleMoodSelect = (mood: { emoji: string; name: string }) => {
+    if (moodPickerTarget === 'new') {
+      setSelectedMood(mood);
+    } else {
+      setEditMood(mood);
+    }
+    setMoodPickerTarget(null);
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Create new note */}
@@ -343,9 +364,29 @@ export function NotesApp() {
               <Smile size={16} />
               Icon
             </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setMoodPickerTarget(moodPickerTarget === 'new' ? null : 'new')}
+              className="flex items-center gap-2"
+            >
+              <Heart size={16} />
+              Cảm xúc
+            </Button>
             
             <ImageUploader onImageUpload={(storageId) => setNewNoteImages(prev => [...prev, storageId])} existingImages={newNoteImages} />
             {newNoteContent.length > 0 && <Badge variant="outline" className="font-normal">{newNoteContent.length} characters</Badge>}
+            {selectedMood && (
+              <Badge variant="default" className="font-normal flex items-center gap-1">
+                <span>{selectedMood.emoji}</span>
+                <span>cảm thấy {selectedMood.name}</span>
+                <Button variant="ghost" size="sm" className="h-4 w-4 p-0 ml-1 text-white hover:bg-primary/20" onClick={() => setSelectedMood(null)}>
+                  <X size={10} />
+                </Button>
+              </Badge>
+            )}
           </div>
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
@@ -389,6 +430,21 @@ export function NotesApp() {
                 <CustomEmojiPicker 
                   onEmojiClick={(emoji) => handleEmojiClick(emoji)}
                   onClose={() => setEmojiPickerTarget(null)}
+                />
+              </div>
+            </>
+          )}
+
+          {moodPickerTarget === 'new' && (
+            <>
+              <div 
+                className="fixed inset-0 z-40" 
+                onClick={() => setMoodPickerTarget(null)}
+              />
+              <div className="absolute z-50 mt-2" style={{ top: '100%', right: 0 }}>
+                <MoodPicker 
+                  onMoodSelect={handleMoodSelect}
+                  onClose={() => setMoodPickerTarget(null)}
                 />
               </div>
             </>
@@ -499,9 +555,29 @@ export function NotesApp() {
                         <Smile size={16} />
                         Icon
                       </Button>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setMoodPickerTarget(moodPickerTarget === 'edit' ? null : 'edit')}
+                        className="flex items-center gap-2"
+                      >
+                        <Heart size={16} />
+                        Cảm xúc
+                      </Button>
                       
                       <ImageUploader noteId={note._id} existingImages={note.images || []} />
                       <Badge variant="outline" className="font-normal">{editContent.length} characters</Badge>
+                      {editMood && (
+                        <Badge variant="default" className="font-normal flex items-center gap-1">
+                          <span>{editMood.emoji}</span>
+                          <span>cảm thấy {editMood.name}</span>
+                          <Button variant="ghost" size="sm" className="h-4 w-4 p-0 ml-1 text-white hover:bg-primary/20" onClick={() => setEditMood(null)}>
+                            <X size={10} />
+                          </Button>
+                        </Badge>
+                      )}
                     </div>
                     <div className="flex flex-col gap-2 mt-2">
                       <div className="flex items-center gap-2">
@@ -549,6 +625,21 @@ export function NotesApp() {
                         </div>
                       </>
                     )}
+
+                    {moodPickerTarget === 'edit' && (
+                      <>
+                        <div 
+                          className="fixed inset-0 z-40" 
+                          onClick={() => setMoodPickerTarget(null)}
+                        />
+                        <div className="absolute z-50 mt-2" style={{ top: '100%', right: 0 }}>
+                          <MoodPicker 
+                            onMoodSelect={handleMoodSelect}
+                            onClose={() => setMoodPickerTarget(null)}
+                          />
+                        </div>
+                      </>
+                    )}
                     
                     <div className="flex justify-end gap-2">
                       <Button variant="outline" size="sm" onClick={cancelEditing}><X size={16} className="mr-1" /> Cancel</Button>
@@ -558,6 +649,16 @@ export function NotesApp() {
                 </div>
               ) : (
                 <div>
+                  {/* Mood Display */}
+                  {note.mood && (
+                    <div className="mb-3 flex items-center gap-2">
+                      <Badge variant="secondary" className="font-normal flex items-center gap-1 px-3 py-1">
+                        <span className="text-lg">{note.mood.emoji}</span>
+                        <span className="text-sm">cảm thấy {note.mood.name}</span>
+                      </Badge>
+                    </div>
+                  )}
+                  
                   <div className="text-foreground text-lg leading-relaxed whitespace-pre-wrap mb-3">
                     {formatContentWithHashtags(note.content, (hashtag) => { setSelectedHashtag(hashtag); setSearchTerm(""); setSelectedDate(""); })}
                   </div>

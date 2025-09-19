@@ -153,6 +153,10 @@ export const createNote = mutation({
     date: v.optional(v.string()),
     images: v.optional(v.array(v.id("_storage"))),
     tags: v.optional(v.array(v.string())),
+    mood: v.optional(v.object({
+      emoji: v.string(),
+      name: v.string()
+    })),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -174,6 +178,11 @@ export const createNote = mutation({
         date,
         tags: args.tags || [],
       };
+      
+      // Thêm mood nếu có
+      if (args.mood) {
+        (noteData as any).mood = args.mood;
+      }
       
       // Tạo ghi chú không kèm hình ảnh
       let noteId;
@@ -203,6 +212,10 @@ export const update = mutation({
     date: v.optional(v.string()),
     images: v.optional(v.array(v.id("_storage"))),
     tags: v.optional(v.array(v.string())),
+    mood: v.optional(v.object({
+      emoji: v.string(),
+      name: v.string()
+    })),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -236,6 +249,10 @@ export const update = mutation({
     
     if (args.tags !== undefined) {
       updateData.tags = args.tags;
+    }
+
+    if (args.mood !== undefined) {
+      updateData.mood = args.mood;
     }
 
     await ctx.db.patch(args.id, updateData);
