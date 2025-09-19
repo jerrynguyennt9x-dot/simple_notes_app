@@ -119,3 +119,35 @@ select:focus-visible {
   outline: 2px solid #3b82f6;
   outline-offset: 2px;
 }
+
+/* Emoji Picker Styles */
+.EmojiPickerReact {
+  border-radius: 8px !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1) !important;
+  border: 1px solid #e5e7eb !important;
+}
+
+.EmojiPickerReact .epr-emoji-category-label {
+  background-color: #f9fafb !important;
+  color: #374151 !important;
+}
+
+.EmojiPickerReact .epr-search-container input {
+  border: 1px solid #d1d5db !important;
+  border-radius: 6px !important;
+  padding: 8px 12px !important;
+}
+
+.EmojiPickerReact .epr-emoji-category {
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+.EmojiPickerReact .epr-emoji:hover {
+  background-color: #f3f4f6 !important;
+  border-radius: 4px !important;
+}
+
+.EmojiPickerReact .epr-skin-tone-select {
+  border: 1px solid #d1d5db !important;
+  border-radius: 4px !important;
+}

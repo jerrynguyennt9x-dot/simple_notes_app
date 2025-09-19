@@ -8,12 +8,14 @@ interface VoiceRecorderProps {
   onTranscriptChange: (transcript: string) => void;
   onTranscriptConfirm: (transcript: string) => void;
   isDisabled?: boolean;
+  onStart?: () => void;
 }
 
 export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
   onTranscriptChange,
   onTranscriptConfirm,
-  isDisabled = false
+  isDisabled = false,
+  onStart
 }) => {
   const {
     transcript,
@@ -33,6 +35,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
     if (isListening) {
       stopListening();
     } else {
+      onStart?.();
       startListening();
     }
   };

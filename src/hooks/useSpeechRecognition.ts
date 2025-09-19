@@ -72,7 +72,7 @@ export const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
         let finalTranscript = '';
         let interimTranscript = '';
 
-        for (let i = event.resultIndex; i < event.results.length; i++) {
+        for (let i = 0; i < event.results.length; i++) {
           const transcript = event.results[i][0].transcript;
           if (event.results[i].isFinal) {
             finalTranscript += transcript;
@@ -81,14 +81,11 @@ export const useSpeechRecognition = (): UseSpeechRecognitionReturn => {
           }
         }
 
-        setTranscript(prevTranscript => {
-          const currentFinal = prevTranscript.split('[tạm thời: ')[0];
-          const newTranscript = currentFinal + finalTranscript;
-          if (interimTranscript) {
-            return newTranscript + '[tạm thời: ' + interimTranscript + ']';
-          }
-          return newTranscript;
-        });
+        let fullTranscript = finalTranscript;
+        if (interimTranscript) {
+          fullTranscript += '[tạm thời: ' + interimTranscript + ']';
+        }
+        setTranscript(fullTranscript);
       });
 
       recognition.addEventListener('error', (event: SpeechRecognitionErrorEvent) => {

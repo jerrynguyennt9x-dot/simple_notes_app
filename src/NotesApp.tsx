@@ -8,10 +8,11 @@ import { Input } from "./components/ui/input";
 import { Textarea } from "./components/ui/textarea";
 import { Badge } from "./components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "./components/ui/dialog";
-import { Search, Plus, Edit, Trash2, Save, X, Clock, RefreshCw, Calendar, Hash, Share2, Mic } from "lucide-react";
+import { Search, Plus, Edit, Trash2, Save, X, Clock, RefreshCw, Calendar, Hash, Share2, Mic, Smile } from "lucide-react";
 import { ShareNoteDialog } from "./ShareNoteDialog";
 import { ImageUploader, ImagePreview } from "./ImageUploader";
 import { VoiceRecorder } from "./components/VoiceRecorder";
+import { CustomEmojiPicker } from "./components/CustomEmojiPicker";
 
 import { formatContentWithHashtags, formatTime, formatTimeWithHours } from "./utils.tsx";
 
@@ -32,9 +33,11 @@ export function NotesApp() {
   const [newTag, setNewTag] = useState<string>("");
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
   const [showEditVoiceRecorder, setShowEditVoiceRecorder] = useState(false);
+  const [contentBeforeRecording, setContentBeforeRecording] = useState('');
+  const [emojiPickerTarget, setEmojiPickerTarget] = useState<'new' | 'edit' | null>(null);
 
   // Mutations and Queries
-  const notes = useQuery(api.notes.search, { 
+  const notes = useQuery(api.notes.search, {
     searchTerm,
     date: selectedDate,
     hashtag: selectedHashtag,
@@ -235,53 +238,71 @@ export function NotesApp() {
 
   // Voice Recording Handlers
   const handleVoiceTranscriptChange = (transcript: string) => {
-    // Cập nhật nội dung real-time khi đang ghi âm
-    if (transcript.trim()) {
-      setNewNoteContent(prevContent => {
-        // Nếu đã có nội dung, thêm transcript vào cuối
-        const baseContent = prevContent.split('[Đang ghi âm...]')[0];
-        return baseContent + transcript;
-      });
-    }
+    const separator = contentBeforeRecording.trim() === '' ? '' : ' ';
+    setNewNoteContent(contentBeforeRecording + separator + transcript);
   };
 
   const handleVoiceTranscriptConfirm = (transcript: string) => {
-    // Xác nhận transcript và đóng voice recorder
-    if (transcript.trim()) {
-      setNewNoteContent(prevContent => {
-        const baseContent = prevContent.split('[Đang ghi âm...]')[0];
-        const newContent = baseContent + (baseContent ? '\n\n' : '') + transcript;
-        return newContent;
-      });
-      setShowVoiceRecorder(false);
+    const finalTranscript = transcript.split('[tạm thời: ')[0].trim();
+    if (finalTranscript) {
+      const separator = contentBeforeRecording.trim() === '' ? '' : '\n\n';
+      setNewNoteContent(contentBeforeRecording + separator + finalTranscript);
+    } else {
+      setNewNoteContent(contentBeforeRecording);
     }
+    setShowVoiceRecorder(false);
   };
 
   // Edit Voice Recording Handlers
   const handleEditVoiceTranscriptChange = (transcript: string) => {
-    if (transcript.trim()) {
-      setEditContent(prevContent => {
-        const baseContent = prevContent.split('[Đang ghi âm...]')[0];
-        return baseContent + transcript;
-      });
-    }
+    const separator = contentBeforeRecording.trim() === '' ? '' : ' ';
+    setEditContent(contentBeforeRecording + separator + transcript);
   };
 
   const handleEditVoiceTranscriptConfirm = (transcript: string) => {
-    if (transcript.trim()) {
-      setEditContent(prevContent => {
-        const baseContent = prevContent.split('[Đang ghi âm...]')[0];
-        const newContent = baseContent + (baseContent ? '\n\n' : '') + transcript;
-        return newContent;
-      });
-      setShowEditVoiceRecorder(false);
+    const finalTranscript = transcript.split('[tạm thời: ')[0].trim();
+    if (finalTranscript) {
+      const separator = contentBeforeRecording.trim() === '' ? '' : '\n\n';
+      setEditContent(contentBeforeRecording + separator + finalTranscript);
+    } else {
+      setEditContent(contentBeforeRecording);
     }
+    setShowEditVoiceRecorder(false);
+  };
+
+  const handleEmojiClick = (emoji: string) => {
+    const target = emojiPickerTarget === 'new' ? newNoteRef : editRef;
+    const setContent = emojiPickerTarget === 'new' ? setNewNoteContent : setEditContent;
+    const currentContent = emojiPickerTarget === 'new' ? newNoteContent : editContent;
+
+    if (!target.current) {
+      // Fallback if ref is not available
+      const newContent = currentContent + emoji;
+      setContent(newContent);
+      setEmojiPickerTarget(null);
+      return;
+    }
+
+    const cursorPosition = target.current.selectionStart || currentContent.length;
+    const newContent = currentContent.slice(0, cursorPosition) + emoji + currentContent.slice(cursorPosition);
+    
+    setContent(newContent);
+    setEmojiPickerTarget(null);
+
+    // Focus back to textarea and set cursor position after emoji
+    setTimeout(() => {
+      if (target.current) {
+        target.current.focus();
+        const newCursorPosition = cursorPosition + emoji.length;
+        target.current.setSelectionRange(newCursorPosition, newCursorPosition);
+      }
+    }, 10);
   };
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6">
       {/* Create new note */}
-      <div className="bg-card border rounded-lg p-4 shadow-sm">
+      <div className="bg-card border rounded-lg p-4 shadow-sm relative">
         <Textarea
           ref={newNoteRef}
           value={newNoteContent}
@@ -311,6 +332,17 @@ export function NotesApp() {
               <Mic size={16} />
               {showVoiceRecorder ? "Ẩn ghi âm" : "Ghi âm"}
             </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setEmojiPickerTarget(emojiPickerTarget === 'new' ? null : 'new')}
+              className="flex items-center gap-2"
+            >
+              <Smile size={16} />
+              Icon
+            </Button>
             
             <ImageUploader onImageUpload={(storageId) => setNewNoteImages(prev => [...prev, storageId])} existingImages={newNoteImages} />
             {newNoteContent.length > 0 && <Badge variant="outline" className="font-normal">{newNoteContent.length} characters</Badge>}
@@ -339,11 +371,27 @@ export function NotesApp() {
           {showVoiceRecorder && (
             <div className="border-t border-border pt-3">
               <VoiceRecorder
+                onStart={() => setContentBeforeRecording(newNoteContent)}
                 onTranscriptChange={handleVoiceTranscriptChange}
                 onTranscriptConfirm={handleVoiceTranscriptConfirm}
                 isDisabled={false}
               />
             </div>
+          )}
+
+          {emojiPickerTarget === 'new' && (
+            <>
+              <div 
+                className="fixed inset-0 z-40" 
+                onClick={() => setEmojiPickerTarget(null)}
+              />
+              <div className="absolute z-50 mt-2" style={{ top: '100%', right: 0 }}>
+                <CustomEmojiPicker 
+                  onEmojiClick={(emoji) => handleEmojiClick(emoji)}
+                  onClose={() => setEmojiPickerTarget(null)}
+                />
+              </div>
+            </>
           )}
           
           {newNoteImages.length > 0 && (
@@ -409,7 +457,7 @@ export function NotesApp() {
           notes.map((note) => (
             <div key={note._id} className="bg-card border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
               {editingId === note._id ? (
-                <div className="space-y-3">
+                <div className="space-y-3 relative">
                   <Textarea
                     ref={editRef}
                     value={editContent}
@@ -440,6 +488,17 @@ export function NotesApp() {
                         <Mic size={16} />
                         {showEditVoiceRecorder ? "Ẩn ghi âm" : "Ghi âm"}
                       </Button>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEmojiPickerTarget(emojiPickerTarget === 'edit' ? null : 'edit')}
+                        className="flex items-center gap-2"
+                      >
+                        <Smile size={16} />
+                        Icon
+                      </Button>
                       
                       <ImageUploader noteId={note._id} existingImages={note.images || []} />
                       <Badge variant="outline" className="font-normal">{editContent.length} characters</Badge>
@@ -468,11 +527,27 @@ export function NotesApp() {
                     {showEditVoiceRecorder && (
                       <div className="border-t border-border pt-3">
                         <VoiceRecorder
+                          onStart={() => setContentBeforeRecording(editContent)}
                           onTranscriptChange={handleEditVoiceTranscriptChange}
                           onTranscriptConfirm={handleEditVoiceTranscriptConfirm}
                           isDisabled={false}
                         />
                       </div>
+                    )}
+
+                    {emojiPickerTarget === 'edit' && (
+                      <>
+                        <div 
+                          className="fixed inset-0 z-40" 
+                          onClick={() => setEmojiPickerTarget(null)}
+                        />
+                        <div className="absolute z-50 mt-2" style={{ top: '100%', right: 0 }}>
+                          <CustomEmojiPicker 
+                            onEmojiClick={(emoji) => handleEmojiClick(emoji)}
+                            onClose={() => setEmojiPickerTarget(null)}
+                          />
+                        </div>
+                      </>
                     )}
                     
                     <div className="flex justify-end gap-2">
@@ -526,7 +601,7 @@ export function NotesApp() {
                 </div>
               )}
             </div>
-          ))
+          )) 
         )}
       </div>
       {sharingNoteId && <ShareNoteDialog noteId={sharingNoteId} isOpen={!!sharingNoteId} onClose={() => setSharingNoteId(null)} />}
